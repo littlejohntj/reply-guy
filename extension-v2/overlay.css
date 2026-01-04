@@ -1,0 +1,301 @@
+/* Reply Guy Overlay Styles */
+
+/* Highlighted tweet */
+.rg-highlighted {
+  outline: 3px solid #3b82f6 !important;
+  outline-offset: 2px;
+  background: rgba(59, 130, 246, 0.05) !important;
+}
+
+.rg-skipped {
+  opacity: 0.4;
+}
+
+/* Main overlay panel */
+#reply-guy-overlay {
+  position: fixed;
+  top: 20px;
+  z-index: 99999;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+}
+
+/* Position toggle */
+#reply-guy-overlay.rg-position-right,
+#reply-guy-overlay:not([class*="rg-position"]) {
+  right: 20px;
+  left: auto;
+}
+
+#reply-guy-overlay.rg-position-left {
+  left: 20px;
+  right: auto;
+}
+
+.rg-panel {
+  width: 420px;
+  background: #15202b;
+  border-radius: 16px;
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.5);
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+/* Header */
+.rg-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  background: rgba(0, 0, 0, 0.3);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.rg-title {
+  font-weight: 700;
+  font-size: 15px;
+  color: #fff;
+}
+
+.rg-position {
+  font-size: 13px;
+  color: #8899a6;
+}
+
+.rg-header-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.rg-header-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.rg-position-toggle {
+  background: none;
+  border: none;
+  color: #8899a6;
+  font-size: 16px;
+  cursor: pointer;
+  padding: 4px;
+  line-height: 1;
+}
+
+.rg-position-toggle:hover {
+  color: #fff;
+}
+
+.rg-close {
+  background: none;
+  border: none;
+  color: #8899a6;
+  font-size: 20px;
+  cursor: pointer;
+  padding: 0;
+  line-height: 1;
+}
+
+.rg-close:hover {
+  color: #fff;
+}
+
+/* Tweet content */
+.rg-tweet-content {
+  padding: 16px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.rg-author {
+  font-weight: 700;
+  font-size: 14px;
+  color: #fff;
+  margin-bottom: 8px;
+}
+
+.rg-text {
+  font-size: 14px;
+  color: #e7e9ea;
+  line-height: 1.5;
+  max-height: 150px;
+  overflow-y: auto;
+  margin-bottom: 8px;
+}
+
+.rg-metrics {
+  font-size: 12px;
+  color: #8899a6;
+}
+
+/* Reply section */
+.rg-reply-section {
+  padding: 12px 16px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.rg-reply-options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.rg-option {
+  padding: 6px 12px;
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 20px;
+  color: #fff;
+  font-size: 12px;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.rg-option:hover {
+  background: rgba(255, 255, 255, 0.15);
+}
+
+.rg-option.active {
+  background: #3b82f6;
+  border-color: #3b82f6;
+}
+
+.rg-cycle-hint {
+  font-size: 11px;
+  color: #8899a6;
+  align-self: center;
+}
+
+.rg-reply-input {
+  width: 100%;
+  min-height: 100px;
+  padding: 12px 14px;
+  background: rgba(0, 0, 0, 0.3);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 12px;
+  color: #fff;
+  font-size: 14px;
+  font-family: inherit;
+  resize: vertical;
+  box-sizing: border-box;
+}
+
+.rg-reply-input:focus {
+  outline: none;
+  border-color: #3b82f6;
+}
+
+.rg-reply-input::placeholder {
+  color: #8899a6;
+}
+
+/* Actions */
+.rg-actions {
+  display: flex;
+  gap: 8px;
+  padding: 12px 16px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.rg-btn {
+  flex: 1;
+  padding: 10px 16px;
+  border: none;
+  border-radius: 9999px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.rg-generate {
+  background: #3b82f6;
+  color: #fff;
+}
+
+.rg-generate:hover {
+  background: #2563eb;
+}
+
+.rg-generate:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.rg-skip {
+  background: rgba(255, 255, 255, 0.1);
+  color: #fff;
+}
+
+.rg-skip:hover {
+  background: rgba(255, 255, 255, 0.15);
+}
+
+.rg-reply {
+  background: #10b981;
+  color: #fff;
+}
+
+.rg-reply:hover {
+  background: #059669;
+}
+
+/* Shortcuts */
+.rg-shortcuts {
+  padding: 10px 16px;
+  font-size: 11px;
+  color: #8899a6;
+  text-align: center;
+  background: rgba(0, 0, 0, 0.2);
+}
+
+/* Loading state */
+.rg-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 20px;
+  color: #8899a6;
+  font-size: 13px;
+}
+
+.rg-spinner {
+  width: 20px;
+  height: 20px;
+  border: 2px solid rgba(255, 255, 255, 0.2);
+  border-top-color: #3b82f6;
+  border-radius: 50%;
+  animation: rg-spin 0.8s linear infinite;
+}
+
+@keyframes rg-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Status messages */
+.rg-status {
+  display: none;
+  padding: 10px 16px;
+  font-size: 12px;
+  text-align: center;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.rg-status-info {
+  background: rgba(59, 130, 246, 0.15);
+  color: #60a5fa;
+}
+
+.rg-status-success {
+  background: rgba(16, 185, 129, 0.15);
+  color: #34d399;
+}
+
+.rg-status-error {
+  background: rgba(239, 68, 68, 0.15);
+  color: #f87171;
+}
