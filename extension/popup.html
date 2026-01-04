@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Reply Guy</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>Reply Guy</h1>
+      <p class="tagline">Twitter engagement, simplified</p>
+    </header>
+
+    <div id="status" class="status"></div>
+
+    <div class="actions">
+      <button id="add-profile" class="btn btn-primary">
+        <span class="icon">+</span>
+        Add This Profile
+      </button>
+
+      <button id="open-dashboard" class="btn btn-secondary">
+        Open Dashboard
+      </button>
+    </div>
+
+    <div class="shortcuts">
+      <h3>Keyboard Shortcuts</h3>
+      <div class="shortcut">
+        <kbd>Alt</kbd> + <kbd>Shift</kbd> + <kbd>A</kbd>
+        <span>Add profile</span>
+      </div>
+      <div class="shortcut">
+        <kbd>Alt</kbd> + <kbd>Shift</kbd> + <kbd>R</kbd>
+        <span>Quick reply</span>
+      </div>
+    </div>
+
+    <div id="recent-profiles" class="recent-profiles">
+      <h3>Recently Added</h3>
+      <ul id="profile-list"></ul>
+    </div>
+  </div>
+
+  <script src="popup.js"></script>
+</body>
+</html>
