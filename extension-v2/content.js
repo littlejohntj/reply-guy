@@ -28,6 +28,8 @@
           <span class="rg-position">0 / 0</span>
         </div>
         <div class="rg-header-right">
+          <button class="rg-select-nearest" title="Select nearest visible tweet (M)">◎</button>
+          <button class="rg-recenter" title="Recenter on current tweet (C)">⊙</button>
           <button class="rg-position-toggle" title="Toggle position (P)">◧</button>
           <button class="rg-close" title="Close (Esc)">&times;</button>
         </div>
@@ -47,13 +49,13 @@
       </div>
       <div class="rg-actions">
         <button class="rg-btn rg-generate">
-          <span class="rg-btn-text">✨ Generate (G)</span>
+          <span class="rg-btn-text">Generate (G)</span>
         </button>
         <button class="rg-btn rg-skip">Skip (S)</button>
         <button class="rg-btn rg-reply">Reply (R)</button>
       </div>
       <div class="rg-shortcuts">
-        J/K nav • G generate • V cycle • R reply • S skip • Esc close
+        J/K nav • G gen • V cycle • R reply • S skip • C center • M nearest • Esc close
       </div>
       <div class="rg-status"></div>
     </div>
@@ -253,6 +255,67 @@
     updatePanel();
   }
 
+  // Recenter on current tweet (scroll it into view without changing selection)
+  function recenterOnCurrentTweet() {
+    const tweet = getCurrentTweet();
+    if (tweet?.element) {
+      tweet.element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      showStatus('Recentered on current tweet', 'info');
+    } else {
+      showStatus('No tweet selected', 'info');
+    }
+  }
+
+  // Select the tweet nearest to the center of the viewport
+  function selectNearestVisibleTweet() {
+    const viewportHeight = window.innerHeight;
+    const viewportCenter = viewportHeight / 2;
+
+    let nearestTweet = null;
+    let nearestDistance = Infinity;
+
+    // Check all tracked tweets
+    for (const tweetId of tweetOrder) {
+      const tweet = tweetMap.get(tweetId);
+      if (!tweet?.element) continue;
+
+      const rect = tweet.element.getBoundingClientRect();
+
+      // Skip tweets that are completely off-screen
+      if (rect.bottom < 0 || rect.top > viewportHeight) continue;
+
+      // Calculate distance from tweet center to viewport center
+      const tweetCenter = rect.top + (rect.height / 2);
+      const distance = Math.abs(tweetCenter - viewportCenter);
+
+      if (distance < nearestDistance) {
+        nearestDistance = distance;
+        nearestTweet = tweet;
+      }
+    }
+
+    if (nearestTweet) {
+      currentTweetId = nearestTweet.tweetId;
+
+      // Update highlight without scrolling
+      document.querySelectorAll('.rg-highlighted').forEach(el => {
+        el.classList.remove('rg-highlighted');
+      });
+      nearestTweet.element.classList.add('rg-highlighted');
+
+      // Reset reply state
+      replyOptions = [];
+      selectedReplyIndex = 0;
+      updateReplyOptions();
+      overlay.querySelector('.rg-reply-input').value = '';
+
+      updatePanel();
+      showStatus(`Selected tweet ${getCurrentIndex() + 1}/${tweetOrder.length}`, 'info');
+    } else {
+      showStatus('No visible tweets found', 'info');
+    }
+  }
+
   // Update the panel with current tweet info
   function updatePanel() {
     const tweet = getCurrentTweet();
@@ -291,7 +354,7 @@
       loadingEl.style.display = 'none';
       textarea.style.display = 'block';
       generateBtn.disabled = false;
-      generateBtn.querySelector('.rg-btn-text').textContent = '✨ Generate (G)';
+      generateBtn.querySelector('.rg-btn-text').textContent = 'Generate (G)';
     }
   }
 
@@ -688,6 +751,14 @@
         e.preventDefault();
         togglePosition();
         break;
+      case 'c':
+        e.preventDefault();
+        recenterOnCurrentTweet();
+        break;
+      case 'm':
+        e.preventDefault();
+        selectNearestVisibleTweet();
+        break;
       case 'f':
         e.preventDefault();
         const oldCount = tweetOrder.length;
@@ -709,6 +780,8 @@
   // Close button
   overlay.querySelector('.rg-close').addEventListener('click', toggleOverlay);
   overlay.querySelector('.rg-position-toggle').addEventListener('click', togglePosition);
+  overlay.querySelector('.rg-recenter').addEventListener('click', recenterOnCurrentTweet);
+  overlay.querySelector('.rg-select-nearest').addEventListener('click', selectNearestVisibleTweet);
 
   // Button handlers
   overlay.querySelector('.rg-generate').addEventListener('click', generateReplies);
