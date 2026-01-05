@@ -53,7 +53,7 @@
         <button class="rg-btn rg-reply">Reply (R)</button>
       </div>
       <div class="rg-shortcuts">
-        J/K nav • G generate • V cycle • R reply • S skip • F refresh • Esc close
+        J/K nav • G generate • V cycle • R reply • S skip • Esc close
       </div>
       <div class="rg-status"></div>
     </div>
@@ -507,8 +507,12 @@
       currentTweetId = tweetOrder[idx + 1];
       highlightTweet();
       showStatus(`Skipped. Now on ${idx + 2}/${tweetOrder.length}`, 'info');
+
+      // Check if we need to auto-fetch more
+      checkAutoFetch();
     } else {
-      showStatus('No more tweets! Press F to scan for more.', 'info');
+      // At the end - auto fetch instead of just showing message
+      autoFetchMoreTweets();
     }
 
     // Reset reply state
@@ -516,6 +520,65 @@
     selectedReplyIndex = 0;
     updateReplyOptions();
     overlay.querySelector('.rg-reply-input').value = '';
+  }
+
+  // Auto-fetch more tweets when near the end
+  let autoFetching = false;
+
+  async function autoFetchMoreTweets() {
+    if (autoFetching) return;
+    autoFetching = true;
+
+    showStatus('Loading more tweets...', 'info');
+
+    // Scroll down to trigger Twitter to load more
+    const lastTweet = tweetOrder.length > 0 ? tweetMap.get(tweetOrder[tweetOrder.length - 1]) : null;
+    if (lastTweet?.element) {
+      lastTweet.element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    } else {
+      window.scrollBy({ top: 800, behavior: 'smooth' });
+    }
+
+    // Wait for Twitter to load more
+    await new Promise(r => setTimeout(r, 1000));
+
+    const oldCount = tweetOrder.length;
+    findTweets(false);
+    const newCount = tweetOrder.length - oldCount;
+
+    if (newCount > 0) {
+      showStatus(`+${newCount} tweets loaded (${tweetOrder.length} total)`, 'success');
+    } else {
+      // Try scrolling more and waiting
+      window.scrollBy({ top: 600, behavior: 'smooth' });
+      await new Promise(r => setTimeout(r, 1200));
+      findTweets(false);
+      const finalNew = tweetOrder.length - oldCount;
+      if (finalNew > 0) {
+        showStatus(`+${finalNew} tweets loaded (${tweetOrder.length} total)`, 'success');
+      } else {
+        showStatus('No more tweets to load', 'info');
+      }
+    }
+
+    // Scroll back to current tweet
+    const currentTweet = getCurrentTweet();
+    if (currentTweet?.element) {
+      await new Promise(r => setTimeout(r, 300));
+      currentTweet.element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+
+    updatePanel();
+    autoFetching = false;
+  }
+
+  // Check if we should auto-fetch (within 3 tweets of the end)
+  function checkAutoFetch() {
+    const idx = getCurrentIndex();
+    const remaining = tweetOrder.length - idx - 1;
+    if (remaining <= 2 && !autoFetching) {
+      autoFetchMoreTweets();
+    }
   }
 
   // Navigate tweets
@@ -532,8 +595,12 @@
       selectedReplyIndex = 0;
       updateReplyOptions();
       overlay.querySelector('.rg-reply-input').value = '';
+
+      // Check if we need to auto-fetch more
+      checkAutoFetch();
     } else if (direction > 0) {
-      showStatus('At the last tweet - press F to scan for more', 'info');
+      // At the end - auto fetch instead of just showing message
+      autoFetchMoreTweets();
     } else {
       showStatus('At the first tweet', 'info');
     }

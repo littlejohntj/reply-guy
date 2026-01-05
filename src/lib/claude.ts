@@ -61,28 +61,42 @@ export async function generateReply(
   stylePrompt?: string,
   count: number = 1
 ): Promise<string[]> {
-  const systemPrompt = stylePrompt || `You write Twitter replies. Be concise, authentic, and conversational.
-Avoid:
-- Starting with "Great point!" or similar empty praise
-- Being sycophantic or overly enthusiastic
-- Using hashtags or emojis unless the conversation calls for it
-- Being preachy or giving unsolicited advice
+  const systemPrompt = stylePrompt || `You write Twitter replies. One-liners only. 15 words max. Usually under 10.
 
-Do:
-- Add genuine value or a new perspective
-- Be direct and confident
-- Match the energy of the original tweet
-- Keep it under 280 characters when possible`;
+THE VIBE:
+- You're a friend firing off a quick reply, not a thought leader dropping wisdom
+- React to the tweet, don't analyze it
+- If it's funny, riff on the joke. Don't explain why it's funny.
+- If it's a take, agree/disagree quickly or add a small twist
+- Match their energy level exactly
+
+NEVER DO THIS (thought leader brain):
+- "This is basically..." followed by an insight
+- "The real X is Y" framework tweets
+- Explaining the deeper meaning of their tweet back to them
+- Adding statistics, studies, or "data shows"
+- Making it about productivity, optimization, or self-improvement
+- Startup/hustle culture speak
+
+GOOD REPLIES SOUND LIKE:
+- "my room has owed me that apology for months"
+- "the real flex"
+- "this but unironically"
+- "down bad and correct"
+- "genuinely unhinged take but ok"
+- Quick reactions, not essays
+
+Keep it casual. Lowercase is fine. No hashtags. No emojis unless they used them.`;
 
   if (count === 1) {
     const message = await anthropic.messages.create({
       model: 'claude-sonnet-4-20250514',
-      max_tokens: 300,
+      max_tokens: 100,
       system: systemPrompt,
       messages: [
         {
           role: 'user',
-          content: `Write a reply to this tweet by @${authorHandle}:\n\n"${tweet}"\n\nJust give me the reply text, nothing else.`,
+          content: `Reply to this tweet by @${authorHandle}:\n\n"${tweet}"\n\nOne short reply. Under 15 words. No preamble.`,
         },
       ],
     });
@@ -92,12 +106,12 @@ Do:
 
   const message = await anthropic.messages.create({
     model: 'claude-sonnet-4-20250514',
-    max_tokens: 800,
+    max_tokens: 250,
     system: systemPrompt,
     messages: [
       {
         role: 'user',
-        content: `Write ${count} different reply options to this tweet by @${authorHandle}:\n\n"${tweet}"\n\nGive me ${count} distinct replies with different tones/angles. Format as JSON array of strings: ["reply1", "reply2", "reply3"]`,
+        content: `Write ${count} short reply options to this tweet by @${authorHandle}:\n\n"${tweet}"\n\nEach reply must be under 15 words. Different vibes, same brevity. Format as JSON array: ["reply1", "reply2", "reply3"]`,
       },
     ],
   });
@@ -126,19 +140,27 @@ export async function analyzeWritingStyle(tweets: string[]): Promise<string> {
     messages: [
       {
         role: 'user',
-        content: `Analyze the writing style of these tweets and create a detailed style guide for mimicking this voice:
+        content: `Analyze HOW this person talks (not WHAT they talk about) and create a voice guide for writing replies in their style:
 
 ${tweets.map((t, i) => `${i + 1}. "${t}"`).join('\n')}
 
-Include:
-1. Tone and personality traits
-2. Common phrases or patterns
-3. Sentence structure preferences
-4. Topics they engage with
-5. What they avoid
-6. Any unique quirks
+Focus on VOICE and DELIVERY:
+1. Sentence length - do they write long or short? Fragments ok?
+2. Punctuation style - periods? no periods? ellipses? dashes?
+3. Capitalization - proper caps, all lowercase, ALL CAPS for emphasis?
+4. Word choices - formal/casual? slang? specific phrases they repeat?
+5. Humor style - dry, absurd, self-deprecating, none?
+6. Energy level - chill, hyped, deadpan?
 
-Format as a system prompt that could be used to write in this style.`,
+DO NOT focus on:
+- What topics they care about
+- Their opinions or takes
+- What "value" they add
+- Their expertise or knowledge areas
+
+The goal is to capture their VOICE so replies sound like them, not their BRAIN.
+
+Format as a short system prompt (under 200 words) that captures how to write like them. Focus on the mechanics of their writing, not their worldview.`,
       },
     ],
   });
