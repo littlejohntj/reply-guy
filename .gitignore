@@ -31,3 +31,4 @@ Thumbs.db
 
 # Extension build
 extension/out/
+paste-server/venv/

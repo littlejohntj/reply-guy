@@ -444,11 +444,46 @@
     editor.focus();
     await new Promise(r => setTimeout(r, 200));
 
-    // Try to insert text
-    const success = document.execCommand('insertText', false, replyText);
+    // Try to insert text using execCommand (may fail on Twitter)
+    let success = document.execCommand('insertText', false, replyText);
+
+    if (!success) {
+      // execCommand failed, use paste server if available
+      try {
+        const pasteRes = await fetch('http://localhost:8765/paste', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ text: replyText, delay: 0.15 })
+        });
+        success = pasteRes.ok;
+      } catch (e) {
+        console.log('Reply Guy: Paste server not available');
+      }
+    }
 
     if (success) {
-      showStatus('Reply ready! Click Reply to send, then Back.', 'success');
+      // Wait for Twitter to register the text
+      await new Promise(r => setTimeout(r, 800));
+
+      // Click the Reply button
+      const replyBtn = document.querySelector('[data-testid="tweetButtonInline"]') ||
+                       document.querySelector('[data-testid="tweetButton"]');
+
+      if (replyBtn && !replyBtn.disabled) {
+        replyBtn.click();
+        showStatus('Reply sent! Going back...', 'success');
+
+        // Go back to the feed
+        await new Promise(r => setTimeout(r, 1200));
+        history.back();
+
+        // Wait for feed to load, then re-highlight current tweet
+        await new Promise(r => setTimeout(r, 800));
+        findTweets(false);
+        highlightTweet();
+      } else {
+        showStatus('Reply ready! Click Reply to send.', 'success');
+      }
     } else {
       showStatus('Reply copied - Cmd+V to paste', 'info');
     }
