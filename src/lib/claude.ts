@@ -133,6 +133,99 @@ Keep it casual. Lowercase is fine. No hashtags. No emojis unless they used them.
   return [responseText.trim()];
 }
 
+export async function generateVariations(
+  originalTweet: string,
+  currentReply: string,
+  stylePrompt?: string,
+  count: number = 3
+): Promise<string[]> {
+  const systemPrompt = stylePrompt || `You write Twitter replies. One-liners only. 15 words max. Usually under 10.
+
+Keep it casual. Lowercase is fine. No hashtags. No emojis unless the original had them.`;
+
+  const message = await anthropic.messages.create({
+    model: 'claude-sonnet-4-20250514',
+    max_tokens: 300,
+    system: systemPrompt,
+    messages: [
+      {
+        role: 'user',
+        content: `Original tweet: "${originalTweet}"
+
+Current reply: "${currentReply}"
+
+Write ${count} variations of this reply. Same vibe, different words. Keep the same general angle/approach but mix up the phrasing. Each under 15 words.
+
+Format as JSON array: ["reply1", "reply2", "reply3"]`,
+      },
+    ],
+  });
+
+  const responseText = message.content[0].type === 'text' ? message.content[0].text : '';
+
+  try {
+    const jsonMatch = responseText.match(/\[[\s\S]*\]/);
+    if (jsonMatch) {
+      const replies = JSON.parse(jsonMatch[0]);
+      if (Array.isArray(replies)) {
+        return replies.map((r: string) => r.trim());
+      }
+    }
+  } catch {
+    // Fallback
+  }
+
+  return [responseText.trim()];
+}
+
+export async function refineReply(
+  originalTweet: string,
+  currentReply: string,
+  feedback: string,
+  stylePrompt?: string,
+  count: number = 3
+): Promise<string[]> {
+  const systemPrompt = stylePrompt || `You write Twitter replies. One-liners only. 15 words max. Usually under 10.
+
+Keep it casual. Lowercase is fine. No hashtags. No emojis unless appropriate.`;
+
+  const message = await anthropic.messages.create({
+    model: 'claude-sonnet-4-20250514',
+    max_tokens: 300,
+    system: systemPrompt,
+    messages: [
+      {
+        role: 'user',
+        content: `Original tweet: "${originalTweet}"
+
+Current reply: "${currentReply}"
+
+User feedback: "${feedback}"
+
+Rewrite the reply based on the feedback. Generate ${count} options. Each under 15 words.
+
+Format as JSON array: ["reply1", "reply2", "reply3"]`,
+      },
+    ],
+  });
+
+  const responseText = message.content[0].type === 'text' ? message.content[0].text : '';
+
+  try {
+    const jsonMatch = responseText.match(/\[[\s\S]*\]/);
+    if (jsonMatch) {
+      const replies = JSON.parse(jsonMatch[0]);
+      if (Array.isArray(replies)) {
+        return replies.map((r: string) => r.trim());
+      }
+    }
+  } catch {
+    // Fallback
+  }
+
+  return [responseText.trim()];
+}
+
 export async function analyzeWritingStyle(tweets: string[]): Promise<string> {
   const message = await anthropic.messages.create({
     model: 'claude-sonnet-4-20250514',

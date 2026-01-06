@@ -73,7 +73,9 @@
   gap: 8px;
 }
 
-.rg-position-toggle {
+.rg-position-toggle,
+.rg-recenter,
+.rg-select-nearest {
   background: none;
   border: none;
   color: #8899a6;
@@ -83,7 +85,9 @@
   line-height: 1;
 }
 
-.rg-position-toggle:hover {
+.rg-position-toggle:hover,
+.rg-recenter:hover,
+.rg-select-nearest:hover {
   color: #fff;
 }
 
@@ -301,4 +305,74 @@
 .rg-status-error {
   background: rgba(239, 68, 68, 0.15);
   color: #f87171;
+}
+
+/* Variation buttons */
+.rg-variations,
+.rg-refine-btn {
+  background: rgba(147, 51, 234, 0.3);
+  color: #c4b5fd;
+}
+
+.rg-variations:hover,
+.rg-refine-btn:hover {
+  background: rgba(147, 51, 234, 0.5);
+}
+
+/* Refine modal */
+.rg-refine-modal {
+  padding: 12px 16px;
+  background: rgba(147, 51, 234, 0.1);
+  border-top: 1px solid rgba(147, 51, 234, 0.3);
+}
+
+.rg-refine-header {
+  font-size: 13px;
+  color: #c4b5fd;
+  margin-bottom: 8px;
+  font-weight: 600;
+}
+
+.rg-refine-input {
+  width: 100%;
+  padding: 10px 12px;
+  background: rgba(0, 0, 0, 0.3);
+  border: 1px solid rgba(147, 51, 234, 0.4);
+  border-radius: 8px;
+  color: #fff;
+  font-size: 13px;
+  font-family: inherit;
+  box-sizing: border-box;
+  margin-bottom: 10px;
+}
+
+.rg-refine-input:focus {
+  outline: none;
+  border-color: #9333ea;
+}
+
+.rg-refine-input::placeholder {
+  color: #8899a6;
+}
+
+.rg-refine-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.rg-refine-submit {
+  background: #9333ea;
+  color: #fff;
+  flex: 1;
+}
+
+.rg-refine-submit:hover {
+  background: #7e22ce;
+}
+
+.rg-refine-cancel {
+  background: rgba(255, 255, 255, 0.1);
+  color: #fff;
+  flex: 0 0 auto;
+  padding: 6px 16px;
 }

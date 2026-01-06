@@ -51,11 +51,25 @@
         <button class="rg-btn rg-generate">
           <span class="rg-btn-text">Generate (G)</span>
         </button>
+        <button class="rg-btn rg-variations" style="display: none;">
+          <span class="rg-btn-text">More like this (E)</span>
+        </button>
+        <button class="rg-btn rg-refine-btn" style="display: none;">
+          <span class="rg-btn-text">Refine (T)</span>
+        </button>
         <button class="rg-btn rg-skip">Skip (S)</button>
         <button class="rg-btn rg-reply">Reply (R)</button>
       </div>
+      <div class="rg-refine-modal" style="display: none;">
+        <div class="rg-refine-header">What do you want to change?</div>
+        <input type="text" class="rg-refine-input" placeholder="e.g. make it funnier, shorter, more sarcastic..." />
+        <div class="rg-refine-actions">
+          <button class="rg-btn rg-refine-submit">Refine</button>
+          <button class="rg-btn rg-refine-cancel">Cancel</button>
+        </div>
+      </div>
       <div class="rg-shortcuts">
-        J/K nav • G gen • V cycle • R reply • S skip • C center • M nearest • Esc close
+        J/K nav • G gen • E vary • T refine • C cycle • R reply • S skip • I like • B center • Esc close
       </div>
       <div class="rg-status"></div>
     </div>
@@ -406,9 +420,141 @@
       textarea.value = replyOptions[0] || '';
 
       showStatus(`Generated ${replyOptions.length} reply options!`, 'success');
+      showVariationButtons(true);
     } catch (err) {
       console.error('Reply Guy: Generate error', err);
       showStatus(`Error: ${err.message}. Is localhost:3000 running?`, 'error');
+    } finally {
+      generating = false;
+      setLoading(false);
+    }
+  }
+
+  // Show/hide variation buttons
+  function showVariationButtons(show) {
+    const variationsBtn = overlay.querySelector('.rg-variations');
+    const refineBtn = overlay.querySelector('.rg-refine-btn');
+    variationsBtn.style.display = show ? 'inline-block' : 'none';
+    refineBtn.style.display = show ? 'inline-block' : 'none';
+  }
+
+  // Generate variations of current reply
+  async function generateVariationsOfReply() {
+    const tweet = getCurrentTweet();
+    const textarea = overlay.querySelector('.rg-reply-input');
+    const currentReply = textarea.value.trim();
+
+    if (!currentReply) {
+      showStatus('Generate a reply first (G)', 'info');
+      return;
+    }
+
+    if (generating || !tweet) return;
+
+    generating = true;
+    setLoading(true);
+    showStatus('Generating variations...', 'info');
+
+    try {
+      const res = await fetch(`${API_BASE}/api/reply/variations`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          tweet: tweet.text,
+          currentReply: currentReply,
+          count: 3
+        })
+      });
+
+      if (!res.ok) throw new Error(`API error: ${res.status}`);
+
+      const data = await res.json();
+      replyOptions = data.replies || [];
+
+      if (replyOptions.length === 0) throw new Error('No variations generated');
+
+      selectedReplyIndex = 0;
+      updateReplyOptions();
+      textarea.value = replyOptions[0] || '';
+
+      showStatus(`Generated ${replyOptions.length} variations!`, 'success');
+    } catch (err) {
+      console.error('Reply Guy: Variations error', err);
+      showStatus(`Error: ${err.message}`, 'error');
+    } finally {
+      generating = false;
+      setLoading(false);
+    }
+  }
+
+  // Show refine modal
+  function showRefineModal() {
+    const textarea = overlay.querySelector('.rg-reply-input');
+    if (!textarea.value.trim()) {
+      showStatus('Generate a reply first (G)', 'info');
+      return;
+    }
+
+    const modal = overlay.querySelector('.rg-refine-modal');
+    const input = overlay.querySelector('.rg-refine-input');
+    modal.style.display = 'block';
+    input.value = '';
+    input.focus();
+  }
+
+  // Hide refine modal
+  function hideRefineModal() {
+    const modal = overlay.querySelector('.rg-refine-modal');
+    modal.style.display = 'none';
+  }
+
+  // Submit refine request
+  async function submitRefine() {
+    const tweet = getCurrentTweet();
+    const textarea = overlay.querySelector('.rg-reply-input');
+    const refineInput = overlay.querySelector('.rg-refine-input');
+    const currentReply = textarea.value.trim();
+    const feedback = refineInput.value.trim();
+
+    if (!feedback) {
+      showStatus('Enter what you want to change', 'info');
+      return;
+    }
+
+    if (generating || !tweet) return;
+
+    hideRefineModal();
+    generating = true;
+    setLoading(true);
+    showStatus('Refining reply...', 'info');
+
+    try {
+      const res = await fetch(`${API_BASE}/api/reply/refine`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          tweet: tweet.text,
+          currentReply: currentReply,
+          feedback: feedback,
+          count: 3
+        })
+      });
+
+      if (!res.ok) throw new Error(`API error: ${res.status}`);
+
+      const data = await res.json();
+      replyOptions = data.replies || [];
+
+      if (replyOptions.length === 0) throw new Error('No refined replies generated');
+
+      selectedReplyIndex = 0;
+      updateReplyOptions();
+      textarea.value = replyOptions[0] || '';
+
+      showStatus(`Refined! ${replyOptions.length} options`, 'success');
+    } catch (err) {
+      console.error('Reply Guy: Refine error', err);
+      showStatus(`Error: ${err.message}`, 'error');
     } finally {
       generating = false;
       setLoading(false);
@@ -552,6 +698,31 @@
     }
   }
 
+  // Like current tweet
+  function likeTweet() {
+    const tweet = getCurrentTweet();
+    if (!tweet?.element) {
+      showStatus('No tweet selected', 'error');
+      return;
+    }
+
+    // Find the like button within this tweet
+    const likeBtn = tweet.element.querySelector('[data-testid="like"]');
+    const unlikeBtn = tweet.element.querySelector('[data-testid="unlike"]');
+
+    if (unlikeBtn) {
+      showStatus('Already liked!', 'info');
+      return;
+    }
+
+    if (likeBtn) {
+      likeBtn.click();
+      showStatus('Liked! ❤️', 'success');
+    } else {
+      showStatus('Could not find like button', 'error');
+    }
+  }
+
   // Skip current tweet
   function skipTweet() {
     const tweet = getCurrentTweet();
@@ -583,6 +754,8 @@
     selectedReplyIndex = 0;
     updateReplyOptions();
     overlay.querySelector('.rg-reply-input').value = '';
+    showVariationButtons(false);
+    hideRefineModal();
   }
 
   // Auto-fetch more tweets when near the end
@@ -658,6 +831,8 @@
       selectedReplyIndex = 0;
       updateReplyOptions();
       overlay.querySelector('.rg-reply-input').value = '';
+      showVariationButtons(false);
+      hideRefineModal();
 
       // Check if we need to auto-fetch more
       checkAutoFetch();
@@ -710,8 +885,8 @@
 
     if (!overlayActive) return;
 
-    // Don't capture if typing in textarea (except Escape)
-    const isTyping = e.target.tagName === 'TEXTAREA' || e.target.getAttribute('contenteditable');
+    // Don't capture if typing in input/textarea (except Escape)
+    const isTyping = e.target.tagName === 'TEXTAREA' || e.target.tagName === 'INPUT' || e.target.getAttribute('contenteditable');
     if (isTyping && e.key !== 'Escape') {
       return;
     }
@@ -735,7 +910,7 @@
         e.preventDefault();
         generateReplies();
         break;
-      case 'v':
+      case 'c':
         e.preventDefault();
         cycleReply();
         break;
@@ -747,11 +922,23 @@
         e.preventDefault();
         skipTweet();
         break;
+      case 'i':
+        e.preventDefault();
+        likeTweet();
+        break;
+      case 'e':
+        e.preventDefault();
+        generateVariationsOfReply();
+        break;
+      case 't':
+        e.preventDefault();
+        showRefineModal();
+        break;
       case 'p':
         e.preventDefault();
         togglePosition();
         break;
-      case 'c':
+      case 'b':
         e.preventDefault();
         recenterOnCurrentTweet();
         break;
@@ -787,6 +974,22 @@
   overlay.querySelector('.rg-generate').addEventListener('click', generateReplies);
   overlay.querySelector('.rg-skip').addEventListener('click', skipTweet);
   overlay.querySelector('.rg-reply').addEventListener('click', openReply);
+  overlay.querySelector('.rg-variations').addEventListener('click', generateVariationsOfReply);
+  overlay.querySelector('.rg-refine-btn').addEventListener('click', showRefineModal);
+  overlay.querySelector('.rg-refine-submit').addEventListener('click', submitRefine);
+  overlay.querySelector('.rg-refine-cancel').addEventListener('click', hideRefineModal);
+
+  // Refine input handlers
+  overlay.querySelector('.rg-refine-input').addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      submitRefine();
+    } else if (e.key === 'Escape') {
+      e.preventDefault();
+      hideRefineModal();
+    }
+    e.stopPropagation(); // Don't trigger main keyboard shortcuts
+  });
 
   // Listen for extension command
   chrome.runtime.onMessage.addListener((msg) => {
