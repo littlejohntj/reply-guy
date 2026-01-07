@@ -17,6 +17,74 @@
   let tweetOrder = []; // Array of tweetIds in navigation order
   let currentTweetId = null; // Track position by ID, not index
 
+  // Tweet storage - batch and debounce API calls
+  let pendingTweets = [];
+  let storageTimeout = null;
+
+  // Fetch images and convert to base64 for vision API
+  async function fetchImagesAsBase64(imageUrls) {
+    const results = [];
+    // Limit to 4 images max
+    for (const url of imageUrls.slice(0, 4)) {
+      try {
+        const response = await fetch(url);
+        const blob = await response.blob();
+        const base64 = await new Promise((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onloadend = () => {
+            const dataUrl = reader.result;
+            // Extract base64 part from data URL
+            const base64Data = dataUrl.split(',')[1];
+            resolve(base64Data);
+          };
+          reader.onerror = reject;
+          reader.readAsDataURL(blob);
+        });
+        const mediaType = blob.type || 'image/jpeg';
+        results.push({ base64, mediaType });
+      } catch (e) {
+        console.error('Reply Guy: Failed to fetch image', url, e);
+      }
+    }
+    return results;
+  }
+
+  async function storeDiscoveredTweets(tweets) {
+    pendingTweets.push(...tweets);
+
+    if (storageTimeout) clearTimeout(storageTimeout);
+
+    storageTimeout = setTimeout(async () => {
+      if (pendingTweets.length === 0) return;
+
+      const toStore = [...pendingTweets];
+      pendingTweets = [];
+
+      try {
+        await fetch(`${API_BASE}/api/tweets/store`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            tweets: toStore.map(t => ({
+              tweet_id: t.tweetId,
+              content: t.text,
+              author_handle: t.handle,
+              author_name: t.author,
+              posted_at: t.time,
+              likes: parseInt(t.likes) || 0,
+              retweets: parseInt(t.retweets) || 0,
+              media_urls: t.imageUrls,
+              quoted_tweet_content: t.quotedTweet
+            }))
+          })
+        });
+        console.log(`Reply Guy: Stored ${toStore.length} tweets`);
+      } catch (e) {
+        console.error('Reply Guy: Failed to store tweets', e);
+      }
+    }, 2000); // Batch every 2 seconds
+  }
+
   // Create overlay elements
   const overlay = document.createElement('div');
   overlay.id = 'reply-guy-overlay';
@@ -115,15 +183,66 @@
     if (!tweetId) return null;
 
     const authorEl = el.querySelector('[data-testid="User-Name"]');
-    const textEl = el.querySelector('[data-testid="tweetText"]');
     const timeEl = el.querySelector('time');
+
+    // Extract quoted tweet FIRST so we can exclude it from main tweet text
+    let quotedTweet = null;
+    const cardWrapper = el.querySelector('[data-testid="card.wrapper"]');
+
+    // Try card wrapper first (most common quote tweet format)
+    if (cardWrapper) {
+      const quotedTextEl = cardWrapper.querySelector('[data-testid="tweetText"]');
+      const quotedLinkEl = cardWrapper.querySelector('a[href*="/status/"]');
+      if (quotedTextEl) {
+        quotedTweet = {
+          text: quotedTextEl.textContent || '',
+          authorHandle: quotedLinkEl?.href?.match(/\/([^/]+)\/status/)?.[1] || '',
+          url: quotedLinkEl?.href || ''
+        };
+      }
+    }
+
+    // Get main tweet text - find tweetText that's NOT inside card.wrapper
+    let mainTweetText = '';
+    const allTextEls = el.querySelectorAll('[data-testid="tweetText"]');
+    for (const textEl of allTextEls) {
+      // Skip if this text element is inside a card wrapper (quote tweet)
+      if (textEl.closest('[data-testid="card.wrapper"]')) continue;
+      mainTweetText = textEl.textContent || '';
+      break;
+    }
+
+    // Fallback: look for nested article (alternative quote tweet format)
+    if (!quotedTweet && allTextEls.length > 1) {
+      // If we found main text and there's another tweetText, it might be a quoted tweet
+      const quotedTextEl = allTextEls[1];
+      if (!quotedTextEl.closest('[data-testid="card.wrapper"]')) {
+        // Try to find author in the quote container
+        const quoteContainer = quotedTextEl.closest('[role="link"]') || quotedTextEl.parentElement?.parentElement;
+        const quotedLinkEl = quoteContainer?.querySelector('a[href*="/status/"]');
+        quotedTweet = {
+          text: quotedTextEl.textContent || '',
+          authorHandle: quotedLinkEl?.href?.match(/\/([^/]+)\/status/)?.[1] || '',
+          url: quotedLinkEl?.href || ''
+        };
+      }
+    }
+
+    // Extract image URLs (exclude images inside card.wrapper)
+    const imageEls = el.querySelectorAll('img[data-testid="tweetPhoto"]');
+    const imageUrls = Array.from(imageEls)
+      .filter(img => !img.closest('[data-testid="card.wrapper"]'))
+      .map(img => img.src)
+      .filter(Boolean);
 
     return {
       element: el,
       tweetId,
       author: authorEl?.textContent || 'Unknown',
       handle: linkEl?.href?.match(/\/([^/]+)\/status/)?.[1] || '',
-      text: textEl?.textContent || '',
+      text: mainTweetText,
+      quotedTweet,
+      imageUrls,
       url: linkEl?.href || '',
       time: timeEl?.getAttribute('datetime') || '',
       timestamp: timeEl ? new Date(timeEl.getAttribute('datetime')).getTime() : 0,
@@ -177,6 +296,10 @@
           // New tweets at bottom - append
           tweetOrder = [...tweetOrder, ...newTweetIds];
         }
+
+        // Store new tweets to database (async, non-blocking)
+        const newTweets = newTweetIds.map(id => tweetMap.get(id)).filter(Boolean);
+        storeDiscoveredTweets(newTweets);
       }
     } else if (tweetOrder.length === 0) {
       // First scan - use DOM order
@@ -384,10 +507,23 @@
 
     generating = true;
     setLoading(true);
-    showStatus('Generating replies...', 'info');
+
+    // Fetch images if present
+    let images = [];
+    if (tweet.imageUrls && tweet.imageUrls.length > 0) {
+      showStatus(`Fetching ${tweet.imageUrls.length} image(s)...`, 'info');
+      images = await fetchImagesAsBase64(tweet.imageUrls);
+      if (images.length > 0) {
+        showStatus(`Generating replies (with ${images.length} image(s))...`, 'info');
+      } else {
+        showStatus('Generating replies...', 'info');
+      }
+    } else {
+      showStatus('Generating replies...', 'info');
+    }
 
     try {
-      console.log('Reply Guy: Generating for:', tweet.text.substring(0, 50));
+      console.log('Reply Guy: Generating for:', tweet.text.substring(0, 50), images.length > 0 ? `(${images.length} images)` : '');
 
       const res = await fetch(`${API_BASE}/api/reply/generate-direct`, {
         method: 'POST',
@@ -395,6 +531,9 @@
         body: JSON.stringify({
           tweet: tweet.text,
           authorHandle: tweet.handle,
+          quotedTweet: tweet.quotedTweet,
+          tweetId: tweet.tweetId,
+          images: images.length > 0 ? images : undefined,
           count: 3
         })
       });
@@ -462,6 +601,7 @@
         body: JSON.stringify({
           tweet: tweet.text,
           currentReply: currentReply,
+          tweetId: tweet.tweetId,
           count: 3
         })
       });
@@ -536,6 +676,7 @@
           tweet: tweet.text,
           currentReply: currentReply,
           feedback: feedback,
+          tweetId: tweet.tweetId,
           count: 3
         })
       });

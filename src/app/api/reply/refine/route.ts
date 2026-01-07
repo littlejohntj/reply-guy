@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServiceClient } from '@/lib/supabase';
 import { refineReply } from '@/lib/claude';
+import { getSession } from '@/lib/sessions';
 
 export const dynamic = 'force-dynamic';
 
@@ -17,7 +18,7 @@ export async function OPTIONS() {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { tweet, currentReply, feedback, count = 3 } = body;
+    const { tweet, currentReply, feedback, tweetId, count = 3 } = body;
 
     if (!tweet || !currentReply || !feedback) {
       return NextResponse.json(
@@ -36,6 +37,15 @@ export async function POST(request: NextRequest) {
 
     const stylePrompt = activeVoice?.style_prompt || undefined;
 
+    // Check if there's a session with images (for logging/future use)
+    const session = tweetId ? getSession(tweetId) : undefined;
+    if (session?.images?.length) {
+      console.log(`Refining reply for tweet ${tweetId} - session has ${session.images.length} images (text-only refine)`);
+    }
+
+    // Generate text-only refinement
+    // Note: For now, refine doesn't use images - it just applies the feedback
+    // The user can always press G again for image-aware fresh replies
     const replies = await refineReply(tweet, currentReply, feedback, stylePrompt, count);
 
     return NextResponse.json({ replies }, { headers: corsHeaders });
