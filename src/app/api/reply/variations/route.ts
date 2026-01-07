@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServiceClient } from '@/lib/supabase';
 import { generateVariations } from '@/lib/claude';
+import { getSession } from '@/lib/sessions';
 
 export const dynamic = 'force-dynamic';
 
@@ -17,7 +18,7 @@ export async function OPTIONS() {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { tweet, currentReply, count = 3 } = body;
+    const { tweet, currentReply, tweetId, count = 3 } = body;
 
     if (!tweet || !currentReply) {
       return NextResponse.json(
@@ -36,6 +37,15 @@ export async function POST(request: NextRequest) {
 
     const stylePrompt = activeVoice?.style_prompt || undefined;
 
+    // Check if there's a session with images (for logging/future use)
+    const session = tweetId ? getSession(tweetId) : undefined;
+    if (session?.images?.length) {
+      console.log(`Variations for tweet ${tweetId} - session has ${session.images.length} images (text-only variations)`);
+    }
+
+    // Generate text-only variations
+    // Note: For now, variations don't use images - they just rephrase the existing reply
+    // The user can always press G again for image-aware fresh replies
     const replies = await generateVariations(tweet, currentReply, stylePrompt, count);
 
     return NextResponse.json({ replies }, { headers: corsHeaders });

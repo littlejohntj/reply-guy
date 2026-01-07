@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServiceClient } from '@/lib/supabase';
-import { generateReply } from '@/lib/claude';
+import { generateReply, generateReplyWithVision, QuotedTweet, TweetImage } from '@/lib/claude';
+import { getOrCreateSession } from '@/lib/sessions';
 
 export const dynamic = 'force-dynamic';
 
@@ -20,7 +21,14 @@ export async function OPTIONS() {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { tweet, authorHandle, count = 3 } = body;
+    const { tweet, authorHandle, quotedTweet, tweetId, images, count = 3 } = body as {
+      tweet: string;
+      authorHandle?: string;
+      quotedTweet?: QuotedTweet;
+      tweetId?: string;
+      images?: TweetImage[];
+      count?: number;
+    };
 
     if (!tweet) {
       return NextResponse.json({ error: 'Tweet text is required' }, { status: 400, headers: corsHeaders });
@@ -36,8 +44,30 @@ export async function POST(request: NextRequest) {
 
     const stylePrompt = activeVoice?.style_prompt || undefined;
 
-    // Generate replies with Claude
-    const replies = await generateReply(tweet, authorHandle || 'unknown', stylePrompt, count);
+    let replies: string[];
+
+    // Check if we have images (either new ones or in session)
+    const hasImages = images && images.length > 0;
+
+    if (hasImages) {
+      // Create/update session with images for future variations/refinements
+      if (tweetId) {
+        getOrCreateSession(tweetId, images);
+      }
+
+      // Use vision-capable generation
+      replies = await generateReplyWithVision(
+        tweet,
+        authorHandle || 'unknown',
+        images,
+        stylePrompt,
+        count,
+        quotedTweet
+      );
+    } else {
+      // Standard text generation (with quote context if present)
+      replies = await generateReply(tweet, authorHandle || 'unknown', stylePrompt, count, quotedTweet);
+    }
 
     return NextResponse.json({ replies, reply: replies[0] }, { headers: corsHeaders });
   } catch (err) {
